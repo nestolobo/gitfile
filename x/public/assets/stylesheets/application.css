@@ -1,0 +1,55 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS and SCSS file within this directory, lib/assets/stylesheets, vendor/assets/stylesheets,
+ * or vendor/assets/stylesheets of plugins, if any, can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the top of the
+ * compiled file, but it's generally better to create a new file per style scope.
+ *
+ *= require_self
+ *= require_tree .
+ */
+
+.deckImage {display:none;height:1483px;}
+.leftSide {width:180px;}
+#leftFixed {
+	width:220px;
+	position:fixed;
+	left: 10px;
+	top: 10px;
+}
+#hourHolder {
+	position:fixed;
+	left: 400px;
+	top: 30px;
+	height: 95vh;
+	}
+#hourSlider {
+	display: none;
+	height:400px;
+	}
+#deckSlider {
+	height: 200px;
+	display:none;
+}
+.leftText{
+	vertical-align: top;
+	font-size:14pt;
+}
+
+.activity{
+	cursor:pointer;
+}
+.activityHighlight{
+	background-color:#C0C0FF;
+}
+
+#locationSelection{
+	position: absolute;
+	background-color:#FFC0C0;
+	z-index: 999999;
+	opacity: 0.5;
+	display:none;
+}

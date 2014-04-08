@@ -1,0 +1,372 @@
+<!--
+  Cruise planner app
+  copyright 2014 by Lorin Thwaits
+  all rights reserved
+
+  Search for a day's activities by:
+    Time
+    Deck
+    Location
+    Clicking on a given location
+
+  Sample data is for the Carnival Imagination
+
+  TODO: When an activity is selected, allow a user to indicate if they're attending
+  See a list of all others who have indicated they are attending a given event
+  Use cache manifest to persist all data on a mobile device
+  Cue up the hour slider to the hour it actually is
+  Make labels for the hour and deck sliders
+  Try to get the layout to properly zoom when first opening on an iPhone
+  When selecting an activity, highlight it in the list, not only its location at the right
+ -->
+
+<link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.css" />
+<link href="assets/vertSlider.css" rel="stylesheet" type="text/css" />
+<script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+<script src="/assets/jquery_ujs.js"></script>
+<script src="/assets/jquery.mobile-1.2.1.js"></script>
+
+<input type="hidden" id="dayNum" />
+
+<div id="leftFixed">
+  <table><tr>
+    <td class="leftText">
+      <span id="deckAndTime">Deck <span id="deckNum"></span> -
+      <span id="hourNum"></span></span>
+      <span id="locName"></span>
+    </td></tr>
+    <tr><td id="activityList" style="display:inline-block; height:600px; overflow:auto;">
+      <div style="float:left;height:300px;">
+        <input type="range" id="deckSlider" min="7" max="14" value="9" step="1" orientation="verticalInverted" />
+      </div>
+    </td></tr>
+  </table>
+</div>
+
+<table>
+  <tr>
+    <td class="leftSide"></td>
+    <td id="deckImages">
+      <% (7..13).each do |d| %>
+        <%= image_tag "/assets/CCL_IM_" + d.to_s + ".png", {id:"deckImg" + d.to_s, class:"deckImage"} %>
+      <% end %>
+      <div id="locationSelection"></div>
+    </td>
+  </tr>
+</table>
+
+<div id="hourHolder">
+  <input type="range" id="hourSlider" min="27" max="107" value="27" step="1" orientation="vertical" />
+</div>
+
+<!--div style="height:200px; width:30px; overflow:auto;" id="scroller">
+  <div style="height:420px; background-color:blue;">
+    <table>
+      <tr><td style="height:180px"></td></tr>
+      <tr><td style="height:20px; background-color:red; width:100%;">&nbsp;</td></tr>
+      <tr><td style="height:180px"></td></tr>
+    </table>
+  </div>
+</div> -->
+<script>
+  var currentDeck,
+    currentTime,
+    isCycleDecks = false,
+    isHighlightMode = false,
+    highlightedLoc = null,
+    deckCycler = null;
+    haveAddedText = false;
+  var locations = [
+    [7,20,509,203,573, "Grand Atrium"],
+    [7,96,657,128,849, "Art Gallery"],
+    [8,19,147,203,379, "Dynasty Main Lounge"],
+    [8,21,379,204,463, "Fun shops"],
+    [8,68,576,155,612, ""],
+    [8,21,579,95,646, "Mirage Piano Bar"],  // 5
+    [8,129,577,203,646, "Curiosity Library"],
+    [9,21,171,201,429, "Dynasty lounge"],
+    [9,97,755,201,836, "Dream bar"],
+    [9,126,942,162,1011, "Vittorio's Cafe"],
+    [9,22,910,159,975, "Shangri-La Lounge"],  // 10
+    [9,22,976,162,1058, "Illusions Dance Club"],
+    [9,176,646,214,797, "Imagination Promenade 1"],
+    [9,162,835,201,1193, "Imagination Promenade 2"],
+    [9,22,1245,201,1388, "Xanadu Aft Lounge"],
+    [9,22,578,73,643, "Club O2"], // 15
+    [9,9,642,89,826, "Casino"],
+    [10,41,812,181,1027, "Lido Stage"],
+    [12,46,285,173,442, "Spa Carnival"],
+    [13,35,212,179,650, "Sun Deck"],
+    [11,150,645,210,708, "Verandah Ping Pong"],
+    [9,21,1193,200,1246, "Pinnacle Cigar Club"],
+  ];
+  var activities = [
+    [18,28,30, "Morning Stretch"],  // 7am
+    [18,30,32, "Body Conditioning Class"],  // 7:30am
+    [18,32,34, "Yoga Class"], // 8am
+    [6,34,36, "Sudokus & Puzzles"],  // 8:30am
+    [3,36,38, "Gold & Silver by the Inch Sale"],  // 9am
+    [18,38,40, "Pathway to Yoga Seminar"],  // 9:30am
+    [2,40,42, "Towel Folding Fun"],  // 10am
+    [3,40,44, "$10 blow out sale"],  // 10am
+    [3,40,44, "Liquor & Tobacco Deals"],  // 10am
+    [18,40,42, "Body Sculpt Boot Camp"],  // 10am
+    [6,41,45, "Library Hour"],  // 10:15am
+    [5,41,43, "Friends of Bill W and Jimmy K (AA and NA)"],  // 10:15am
+    [2,42,44, "5 game multi jackpot bingo"],  // 10:30am
+    [6,42,44, "Bridge players meet (free game)"],  // 10:30am
+    [11,44,46, "Art 101: The Art of Collecting"],  // 11:00am
+    [18,44,46, "Detox for Health & Weightloss"],  // 11:00am
+    [16,44,46, "Texas Hold 'Em Tournament"],  // 11:00am
+    [11,44,46, "Art 101: The Art of Collecting"],  // 11:00am
+    [8,46,48, "Trivia: Famous Faces 1980s"],  // 11:30am
+    [3,46,46, "Pandora Style Bracelet Sale"],  // 11:30am
+    [18,47,49, "Skin Corrective Clinic"],  // 11:45am
+    [16,48,52, "$100,000 Ultimate Slot Face-Off"],  // noon
+    [8,48,50, "Trivia: Name That Classic Rock"],  // noon
+    [17,50,52, "Ice Carving Demonstration"],  // 12:30pm
+    [8,52,54, "Movie Themed Trivia"],  // 12:30pm
+    [17,54,56, "The Men's Hairy Chest Competition"],  // 1:00pm
+    [10,54,56, "Grand Finale Art Auction"],  // 1:00pm
+    [3,54,56, "$100 Gift Basket Giveaway"],  // 1:00pm
+    [10,54,56, "Beary Cuddly"],  // 1:00pm
+    [18,54,56, "Brighter Smile Seminar"],  // 1:00pm
+    [8,55,57, "Trivia: Michael Jackson Songs"],  // 1:15pm
+    [16,56,60, "Texas Hold 'em Players Meet"],  // 1:30pm
+    [8,57,59, "Adult Bean Bag Toss"],  // 1:45pm
+    [17,58,60, "Groove for St Jude"],  // 2pm
+    [18,58,60, "Relieve Back Pain with Good Feet"],  // 2pm
+    [16,59,61, "Slot Tournament Finals"],  // 2:15pm
+    [19,60,62, "Mini Putting Tournament"],  // 2:30pm
+    [5,60,62, "Afternoon Tea Time"],  // 3pm
+    [16,60,62, "50,000 Ultimate Blackjack Face-Off"],  // 3pm
+    [6,60,64, "Library Hour"],  // 3pm
+    [8,60,62, "Digital Scavenger Hunt"],  // 3pm
+    [18,62,64, "Pilates"],  // 3:30pm
+    [2,63,65, "5000 Coverall Power Bingo"],  // 3:45pm
+    [3,63,65, "Designer Watchset Sale"],  // 3:45pm
+    [3,63,65, "Designer Watchset Sale"],  // 3:45pm
+    [3,64,66, "Clearance Event"],  // 4pm
+    [5,64,66, "Trivia: Sports"],  // 4pm
+    [18,64,66, "Pilates"],  // 4pm
+    [8,66,68, "Trivia: Name that Motown Song"],  // 4:30pm
+    [20,66,68, "Adult Get Your Ping Pong On"],  // 4:30pm
+    [8,68,72, "Motown & Soul Hour"],  // 5pm
+    [3,68,72, "Guess the Carat Weight Competition"],  // 5pm
+    [18,68,72, "Evening Stretch"],  // 5pm
+    [16,69,72, "Blackjack Tournament Finals"],  // 5:15pm
+    [2,76,82, "Show Time - Shout"],  // 7pm
+    [0,80,82, "Fun Force Show"],  // 8pm
+    [3,80,82, "$100 Gift Basket Giveaway"],  // 8pm
+    [10,82,86, "Karaoke Fun"],  // 8:30pm
+    [2,83,89, "Show Time - Shout"],  // 8:45pm
+    [14,83,89, "Family Friendly Comedy Show"],  // 8:45pm
+    [11,88,92, "Michael Jackson Hour"],  // 10pm
+    [21,88,92, "Friends of Dorothy (LGBT)"],  // 10pm
+    [14,88,100, "Adults Only Comedy"],  // 10pm
+    [16,91,93, "Carnival Cash Craze Drawing"],  // 10:45pm
+    [11,92,106, "Electric White Night"],  // 11pm
+  ];
+  $(function() {
+    // $("#scroller").on("scroll", function(){
+    //   console.log(this.scrollTop);
+    // });
+//    var scrollTop = jQuery('#' + gethash).offset().top + jQuery('.content').scrollTop() - 25;
+
+    $("#deckSlider").on("change", function(event,ui){
+      if((isCycleDecks && $(this).val() != 14) || currentDeck != $(this).val())
+      {
+        turnOffHighlight();   // Turn off activity highlights if that's going
+        if(deckCycler)
+          clearTimeout(deckCycler);
+        isCycleDecks = false;
+
+        var deckNum = $(this).val();
+        if(deckNum == 14) // Cycle through all?
+        {
+          deckNum = 7;
+          isCycleDecks = true;
+        }
+        changeDeck(deckNum);
+        if(highlightedLoc != null)
+          highlightLoc(locations[highlightedLoc]); // Maintain location highlights
+      }
+    });
+    $("#hourSlider").on("change", function(event,ui){
+      if(currentTime != $(this).val())
+      {
+        turnOffHighlight();
+        if(highlightedLoc != null)
+        {
+          highlightedLoc = null;
+          $("#deckAndTime").css("display","inline-block");
+          $("#locName").html("");
+          $("#locationSelection").css("display","none");
+        }
+        changeHour($(this).val());
+      }
+    });
+    $(".deckImage").on("click", function(x){
+      var deck = this.id.substring(7,999);
+      console.log("[" + deck + "," + event.offsetX + "," + event.offsetY + "],");
+      // Find what locations this might be in the middle of, if any
+      for(var i = 0; i < locations.length; ++i)
+      {
+        loc = locations[i];
+        if(deck == loc[0] &&
+          event.offsetX >= loc[1] && event.offsetX <= loc[3] &&
+          event.offsetY >= loc[2] && event.offsetY <= loc[4])
+        {
+//          console.log("Hit -- #" + i);
+          highlightedLoc = i;
+          $("#deckAndTime").css("display","none");
+          $("#locName").html(loc[5]);
+          highlightLoc(loc);
+          if(i == 7)    // Upstairs dynasty lounge override to downstairs activity list
+            i = 2;
+          showActivities(i);  // Show activities for this location
+          break;
+        }
+      }
+    });
+    changeDeck(9);
+    changeHour(27);
+    $.mobile.hidePageLoadingMsg();
+    if(!haveAddedText)
+    {
+      $("#deckSlider").next("div").append('<div class="rotate">deck&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>');
+      $("#hourSlider").next("div").append('<div class="rotate">hour&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>');
+      haveAddedText = true;
+    }
+  });
+
+  $( window ).load(function() {
+    setTimeout("document.body.scrollTop = 169;",500);
+  });
+
+  function changeDeck(num){
+    if(currentDeck)
+      $("#deckImg" + currentDeck).css("display","none");
+    $("#deckNum").html(num == 13 ? "14" : num);
+    $("#deckImg" + num).css("display","inline-block");
+    currentDeck = num;
+    if(!isHighlightMode && highlightedLoc == null)
+      showActivities();
+    if(isCycleDecks)
+    {
+      if(++num == 14)
+        num = 7;
+      deckCycler = setTimeout("changeDeck(" + num + ");", 1000);
+    }
+  }
+  function changeHour(num){
+    if(num == 27)  // Special condition to show all on this deck
+    {
+      currentTime = 0;
+      $("#hourNum").html("all");
+    }
+    else
+    {
+      $("#hourNum").html(convertTime(num));
+      currentTime = num;
+    }
+    turnOffHighlight();
+    showActivities();
+  }
+
+  function convertTime(num)
+  {
+    quarter=num % 4;
+    hour = Math.floor(num / 4) % 12;
+    if(hour == 0)
+      hour = 12;
+    return hour + ":" + (quarter == 0 ? "00" : (quarter * 15)) + (Math.floor(num / 48) % 2 == 0 ? "am" : "pm");
+  }
+
+  function showActivities(thisLoc){
+    $("#activityList").children().not(":first").remove();
+    for(var i = 0; i < activities.length; ++i)
+    {
+      var act = activities[i];
+      var loc = locations[act[0]];
+      if(thisLoc == act[0] ||   // They picked a location for us to hone in on?
+       (!thisLoc && (isCycleDecks || loc[0] == currentDeck) &&
+       (currentTime == 0 || (act[1] <= currentTime && act[2] >= currentTime))))
+      {
+        $("#activityList").append('<div class="activity' +
+          ((isCycleDecks && loc[0] == currentDeck) ? ' activityHighlight"':'') +
+          '" onclick="highlightActivity('+i+');">'+ convertTime(act[1]) + ": " + act[3] +"</div>");
+          // loc[5] is the name of the location
+      }
+    }
+  }
+
+  function highlightActivity(actNum)
+  {
+    var act = activities[actNum];
+    highlightedLoc = act[0];
+    var loc = locations[highlightedLoc];
+
+    // Stop cycling if it is
+    isCycleDecks = false;
+    if(deckCycler)
+      clearTimeout(deckCycler);
+
+    isHighlightMode = true; // Our special mode that doesn't refresh the activity list
+    // Unhighlight all other DIVs
+//    $("#activityList").children().not(":first").remove();
+    changeDeck(loc[0]);
+    highlightLoc(loc);
+    document.body.scrollTop = loc[2] - 100;
+  }
+
+  // Move the selection rectangle into place
+  function highlightLoc(loc)
+  {
+    if(currentDeck == loc[0])
+    {
+      var imgs = $("#deckImages")[0];
+      $("#locationSelection").css("left",imgs.offsetLeft + loc[1]).css("top",imgs.offsetTop + loc[2]).css("width",loc[3] - loc[1]).css("height",loc[4] - loc[2]).css("display", "block");
+    }
+    else  // Not the right deck -- make this disappear
+      $("#locationSelection").css("display", "none");
+  }
+
+  function turnOffHighlight(){
+    if(isHighlightMode)
+    {
+      isHighlightMode = false;
+      $("#locationSelection").css("display","none");
+    }
+  }
+</script>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Day</th>
+      <th>Start time</th>
+      <th>End time</th>
+      <th>Location</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @activities.each do |activity| %>
+      <tr>
+        <td><%= activity.name %></td>
+        <td><%= activity.day %></td>
+        <td><%= activity.start_time %></td>
+        <td><%= activity.end_time %></td>
+        <td><%= activity.location %></td>
+        <td><%= link_to 'Show', activity %></td>
+        <td><%= link_to 'Edit', edit_activity_path(activity) %></td>
+        <td><%= link_to 'Destroy', activity, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

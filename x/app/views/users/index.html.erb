@@ -1,0 +1,10 @@
+<h1>WDI cruise planner!</h1>
+
+Get started by telling us who you are:<br />
+<br />
+<%= form_for :users, html:{id: "users"} do |f| %>
+  <%= f.collection_select "id", @user_list, :id, :name, {}, {onchange: "$('#users').submit()"} %>
+  <br />
+  <br />
+  <label><%= check_box_tag :remember_me, {}, {checked: true} %>Remember me on this computer</label>
+<% end %>

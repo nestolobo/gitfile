@@ -1,0 +1,58 @@
+<h1>Welcome, <%= @user.name %>!</h1>
+<%= link_to "<<< Back to sign-in page", users_path + "/?remember=false" %><br />
+<br />
+<div class="finePrint">(btw don't you just <i>LOVE</i> the amazing styling on this page???)</div>
+<br />
+<%= form_for(@user) do |f| %>
+  <% if @user.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@user.errors.count, "error") %> prohibited this user from being saved:</h2>
+
+      <ul>
+      <% @user.errors.full_messages.each do |msg| %>
+        <li><%= msg %></li>
+      <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  First-ever WDI cruise departs from Long Beach on Thursday April 10th, 5:30pm and returns Sunday April 13th, 8am :)<br />
+  <a href="http://www.carnival.com/BookingEngine/StateRoom/stateroom2/?embkCode=LAX&itinCode=LAC&durDays=3&shipCode=IM&subRegionCode=MB&sailDate=04102014&sailingID=67317&numGuests=4&isPastGuest=N&stateCode=CA" target="_blank">See the righteous details of our cruise on Carnival's website (in a new tab)</a><br />
+  <br />
+  <% if !@going.empty? %>
+    <div class="whosGoing">
+      <%= @user.interest_level == 1 ? "" : "Haven't signed up yet?  Gonna be a killer time.  Don't miss out ..." %> Here's who's going!<br />
+      <b><%= @user.interest_level == 1 ? "YOU, " : "" %><%= @going.map(&:name).join(', ') %></b>
+    </div>
+  <% end %>
+  <% if !@maybe.empty? %>
+	  <br />
+    <div id="sellMaybes"<%= raw @user.interest_level == 1 ? '':' style="display: none;"' %>>
+      and here's who needs some convincing :)<br />
+      <b><%= @maybe.map(&:name).join(', ') %></b>
+    </div>
+  <% end %>
+  <br />
+
+  <div class="userInfo">
+    Going?
+    <%= f.select :interest_level, [["Yes :)", 1], ["Maybe :/", 2], ["No :(", 3]], {}, {onchange: "$('#specifics').css('display', this.value==3?'none':'inline-block');"} %>
+    <br />
+	  <div id="specifics"  <div id="specifics"<%= raw @user.interest_level == 3 ? ' style="display: none;"':"" %>>
+		    <br />
+	      Number of folks you plan on bringing:<br />
+	      <%= f.select :num, [["Just me", 1], ["+1", 2], ["+2", 3]] %>
+		    <br />
+		    <br />
+	      <%= f.label :room_type_id %><br>
+	      <%= f.collection_select :room_type_id, RoomType.all, :id, :name %>
+		    <br />
+		    <br />
+	      Optimal number of people you'd like to have in your room, including yourself:<br />
+	      <%= f.select :occupancy, [["Just me -- one", 1], ["2", 2], ["3", 3], ["4", 4], ["5", 5]] %> (note that more people to a room means lower cost!)<br />
+	  </div>
+	</div>
+
+  <%= f.submit "UPDATE MY EVERYTHING", {id: "btnUpdate"} %>
+
+<% end %>
